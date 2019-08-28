@@ -1,0 +1,67 @@
+rpm --import https://packagecloud.io/rabbitmq/rabbitmq-server/gpgkey
+rpm --import https://github.com/rabbitmq/signing-keys/releases/download/2.0/rabbitmq-release-signing-key.asc
+
+vim /etc/yum.repos.d/rabbitmq_erlang.repo
+[rabbitmq_erlang]
+name=rabbitmq_erlang
+baseurl=https://packagecloud.io/rabbitmq/erlang/el/7/$basearch
+repo_gpgcheck=1
+gpgcheck=0
+enabled=1
+gpgkey=https://packagecloud.io/rabbitmq/erlang/gpgkey
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+metadata_expire=300
+
+[rabbitmq_erlang-source]
+name=rabbitmq_erlang-source
+baseurl=https://packagecloud.io/rabbitmq/erlang/el/7/SRPMS
+repo_gpgcheck=1
+gpgcheck=0
+enabled=1
+gpgkey=https://packagecloud.io/rabbitmq/erlang/gpgkey
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+metadata_expire=300
+
+
+vim /etc/yum.repos.d/rabbitmq.repo
+[bintray-rabbitmq-server]
+name=bintray-rabbitmq-rpm
+baseurl=https://dl.bintray.com/rabbitmq/rpm/rabbitmq-server/v3.7.x/el/7/
+gpgcheck=0
+repo_gpgcheck=0
+enabled=1
+
+
+yum clean all
+yum makecache
+
+yum -y install erlang
+yum install -y rabbitmq-server
+
+启动rabbitmq 
+systemctl start rabbitmq-server
+ 
+这里将是test1作为主节点，另外两个节点加入到test1中，在另外两台上执行 
+rabbitmqctl stop_app
+rabbitmqctl join_cluster rabbit@test1
+rabbitmqctl start_app
+
+在test1上查看状态
+rabbitmqctl cluster_status 
+Cluster status of node rabbit@test1 ...
+[{nodes,[{disc,[rabbit@test1,rabbit@test2,rabbit@test3]}]},
+ {running_nodes,[rabbit@test3,rabbit@test2,rabbit@test1]},
+ {cluster_name,<<"rabbit@test1">>},
+ {partitions,[]},
+ {alarms,[{rabbit@test3,[]},{rabbit@test2,[]},{rabbit@test1,[]}]}]
+
+启动web管理插件，三台机器都要启动 
+rabbitmq-plugins enable rabbitmq_management 
+访问 172.16.35.81:15672/
+rabbitmq有个默认用户guest，密码也为guest，但是这个用户不允许远程登录，登录时会报错
+使用命令行新增一个用户，用新用户登录
+rabbitmqctl add_user root 123456
+rabbitmqctl set_permissions -p / root ".*" ".*" ".*"
+rabbitmqctl set_user_tags root administrator
